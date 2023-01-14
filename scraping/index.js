@@ -1,7 +1,12 @@
 import * as cheerio from "cheerio";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
+// import teams from "../db/teams.json" assert { type: "JSON" };
 
+const DB_PATH = path.join(process.cwd(), "./db");
+const TEAMS = await readFile(`${DB_PATH}/teams.json`, "utf-8").then(JSON.parse);
+
+console.log("🚀 ~ file: index.js:9 ~ TEAMS", TEAMS);
 const URLS = {
   leaderboard: "https://kingsleague.pro/estadisticas/clasificacion/",
 };
@@ -30,6 +35,8 @@ const cleanText = (text) =>
     .replace(/.*:/g, " ")
     .trim();
 
+const getTeamFrom = (teamName) => TEAMS.find((team) => team.name === teamName);
+
 async function getLeaderBoard() {
   const $ = await scrape(URLS.leaderboard);
   const $rows = $(LEADERBOARD_SELECTORS_PREFIX);
@@ -47,15 +54,21 @@ async function getLeaderBoard() {
       }
     );
 
-    leaderBoard.push(Object.fromEntries(ledaerBoardEntries));
+    const { team: teamName, ...leaderBoardForTeam } =
+      Object.fromEntries(ledaerBoardEntries);
+    const team = getTeamFrom(teamName);
+
+    leaderBoard.push({ ...leaderBoardForTeam, team });
   });
 
   return leaderBoard;
 }
 
 const leaderboard = await getLeaderBoard();
-console.log("🚀 ~ file: index.js:55 ~ leaderboard", leaderboard);
-const filePath = path.join(process.cwd(), "./db/leaderboard.json");
-console.log("🚀 ~ file: index.js:59 ~ filePath", filePath);
 
-await writeFile(filePath, JSON.stringify(leaderboard), null, 2);
+await writeFile(
+  `${DB_PATH}/leaderboard.json`,
+  JSON.stringify(leaderboard),
+  null,
+  2
+);
